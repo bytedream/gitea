@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -1479,7 +1480,6 @@ func SyncUserSpecificDiff(ctx context.Context, userID int64, pull *issues_model.
 	}
 
 	filesChangedSinceLastDiff := make(map[string]pull_model.ViewedState)
-outer:
 	for _, diffFile := range diff.Files {
 		fileViewedState := review.UpdatedFiles[diffFile.GetDiffFileName()]
 
@@ -1490,18 +1490,22 @@ outer:
 		}
 
 		filename := diffFile.GetDiffFileName()
+		if changedFileIdx := slices.Index(changedFiles, filename); changedFileIdx != -1 { // Check whether the file has changed since the last review
+			diffFile.HasChangedSinceLastReview = true
+			filesChangedSinceLastDiff[filename] = pull_model.HasChanged
 
-		// Check explicitly whether the file has changed since the last review
-		for _, changedFile := range changedFiles {
-			diffFile.HasChangedSinceLastReview = filename == changedFile
-			if diffFile.HasChangedSinceLastReview {
-				filesChangedSinceLastDiff[filename] = pull_model.HasChanged
-				continue outer // We don't want to check if the file is viewed here as that would fold the file, which is in this case unwanted
-			}
-		}
-		// Check whether the file has already been viewed
-		if fileViewedState == pull_model.Viewed {
+			changedFiles = slices.Delete(changedFiles, changedFileIdx, changedFileIdx+1)
+		} else if fileViewedState == pull_model.Viewed { // Check whether the file has already been viewed
 			diffFile.IsViewed = true
+		}
+	}
+
+	// All changed files still present at this point aren't part of the diff anymore, this occurs
+	// when a file was modified in a previous commit of the diff and the modification got reverted afterwards.
+	// Marking the files as unviewed to prevent errors where a non-existing file has a view state
+	for _, changedFile := range changedFiles {
+		if _, ok := review.UpdatedFiles[changedFile]; ok {
+			filesChangedSinceLastDiff[changedFile] = pull_model.Unviewed
 		}
 	}
 
