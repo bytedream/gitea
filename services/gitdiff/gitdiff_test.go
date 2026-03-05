@@ -1177,14 +1177,13 @@ func TestSyncUserSpecificDiff_UpdatedFiles(t *testing.T) {
 	}
 
 	opts := &DiffOptions{
-		AfterCommitID:  secondReviewCommit,
-		BeforeCommitID: pull.MergeBase,
+		AfterCommitID:     secondReviewCommit,
+		BeforeCommitID:    pull.MergeBase,
+		MaxLines:          setting.Git.MaxGitDiffLines,
+		MaxLineCharacters: setting.Git.MaxGitDiffLineCharacters,
 	}
-	diff := &Diff{
-		Files: []*DiffFile{
-			{Name: "README.md"},
-		},
-	}
+	diff, err := GetDiffForAPI(t.Context(), gitRepo, opts)
+	assert.NoError(t, err)
 	secondReview, err := SyncUserSpecificDiff(t.Context(), user.ID, pull, gitRepo, diff, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, secondReview)
