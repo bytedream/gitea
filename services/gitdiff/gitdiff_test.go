@@ -1149,17 +1149,17 @@ func TestSyncUserSpecificDiff_UpdatedFiles(t *testing.T) {
 	assert.NoError(t, unittest.PrepareTestDatabase())
 
 	user := unittest.AssertExistsAndLoadBean(t, &user_model.User{ID: 2})
-	pull := unittest.AssertExistsAndLoadBean(t, &issues_model.PullRequest{ID: 11})
+	pull := unittest.AssertExistsAndLoadBean(t, &issues_model.PullRequest{ID: 7})
 	assert.NoError(t, pull.LoadBaseRepo(t.Context()))
 
 	gitRepo, err := git.OpenRepository(t.Context(), pull.BaseRepo.RepoPath())
 	assert.NoError(t, err)
 	defer gitRepo.Close()
 
-	firstReviewCommit := "76fa0ad17c213245ecf0bb0ce46bdd9a4d27646b"
+	firstReviewCommit := "320690f9a6e71a97013d2331eb21b279252ef2a4"
 	firstReviewUpdatedFiles := map[string]pull_model.ViewedState{
-		"README.md": pull_model.Viewed,
-		"test.txt":  pull_model.Viewed,
+		"test1.txt":  pull_model.Viewed,
+		"test11.txt": pull_model.Viewed,
 	}
 
 	_, err = pull_model.UpdateReviewState(t.Context(), user.ID, pull.ID, firstReviewCommit, firstReviewUpdatedFiles)
@@ -1170,10 +1170,10 @@ func TestSyncUserSpecificDiff_UpdatedFiles(t *testing.T) {
 	assert.Equal(t, firstReviewUpdatedFiles, firstReview.UpdatedFiles)
 	assert.Equal(t, 2, firstReview.GetViewedFileCount())
 
-	secondReviewCommit := "e303f5ef01a33709911c6b8b3d1cbcba64a57777"
+	secondReviewCommit := "5b0e7161b29ba37428da947be383e85a89b6ce32"
 	secondReviewUpdatedFiles := map[string]pull_model.ViewedState{
-		"README.md": pull_model.Viewed,
-		"test.txt":  pull_model.Unviewed,
+		"test1.txt":  pull_model.Viewed,
+		"test11.txt": pull_model.Unviewed,
 	}
 
 	opts := &DiffOptions{
