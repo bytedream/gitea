@@ -14,7 +14,6 @@ import (
 	"io"
 	"net/url"
 	"path"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -1480,8 +1479,10 @@ func SyncUserSpecificDiff(ctx context.Context, userID int64, pull *issues_model.
 	}
 
 	filesChangedSinceLastDiff := make(map[string]pull_model.ViewedState)
+outer:
 	for _, diffFile := range diff.Files {
-		fileViewedState := review.UpdatedFiles[diffFile.GetDiffFileName()]
+		filename := diffFile.GetDiffFileName()
+		fileViewedState := review.UpdatedFiles[filename]
 
 		// Check whether it was previously detected that the file has changed since the last review
 		if fileViewedState == pull_model.HasChanged {
@@ -1489,13 +1490,21 @@ func SyncUserSpecificDiff(ctx context.Context, userID int64, pull *issues_model.
 			continue
 		}
 
-		filename := diffFile.GetDiffFileName()
-		if changedFileIdx := slices.Index(changedFiles, filename); changedFileIdx != -1 { // Check whether the file has changed since the last review
-			diffFile.HasChangedSinceLastReview = true
-			filesChangedSinceLastDiff[filename] = pull_model.HasChanged
+		// Check explicitly whether the file has changed since the last review
+		for i, changedFile := range changedFiles {
+			diffFile.HasChangedSinceLastReview = filename == changedFile
+			if diffFile.HasChangedSinceLastReview {
+				filesChangedSinceLastDiff[filename] = pull_model.HasChanged
 
-			changedFiles = slices.Delete(changedFiles, changedFileIdx, changedFileIdx+1)
-		} else if fileViewedState == pull_model.Viewed { // Check whether the file has already been viewed
+				// File changes are processed, no need to check them again
+				changedFiles[i] = changedFiles[len(changedFiles)-1]
+				changedFiles = changedFiles[:len(changedFiles)-1]
+
+				continue outer // We don't want to check if the file is viewed here as that would fold the file, which is in this case unwanted
+			}
+		}
+		// Check whether the file has already been viewed
+		if fileViewedState == pull_model.Viewed {
 			diffFile.IsViewed = true
 		}
 	}
