@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	issues_model "code.gitea.io/gitea/models/issues"
+	pull_model "code.gitea.io/gitea/models/pull"
 	"code.gitea.io/gitea/models/unittest"
 	user_model "code.gitea.io/gitea/models/user"
 	"code.gitea.io/gitea/modules/git"
@@ -1142,4 +1143,51 @@ func TestHighlightCodeLines(t *testing.T) {
 			1: `<span class="n">b</span>`,
 		}, ret)
 	})
+}
+
+func TestSyncUserSpecificDiff_UpdatedFiles(t *testing.T) {
+	assert.NoError(t, unittest.PrepareTestDatabase())
+
+	user := unittest.AssertExistsAndLoadBean(t, &user_model.User{ID: 2})
+	pull := unittest.AssertExistsAndLoadBean(t, &issues_model.PullRequest{ID: 11})
+	assert.NoError(t, pull.LoadBaseRepo(t.Context()))
+
+	gitRepo, err := git.OpenRepository(t.Context(), pull.BaseRepo.RepoPath())
+	assert.NoError(t, err)
+	defer gitRepo.Close()
+
+	firstReviewCommit := "76fa0ad17c213245ecf0bb0ce46bdd9a4d27646b"
+	firstReviewUpdatedFiles := map[string]pull_model.ViewedState{
+		"README.md": pull_model.Viewed,
+		"test.txt":  pull_model.Viewed,
+	}
+
+	_, err = pull_model.UpdateReviewState(t.Context(), user.ID, pull.ID, firstReviewCommit, firstReviewUpdatedFiles)
+	assert.NoError(t, err)
+	firstReview, err := pull_model.GetNewestReviewState(t.Context(), user.ID, pull.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, firstReview)
+	assert.Equal(t, firstReviewUpdatedFiles, firstReview.UpdatedFiles)
+	assert.Equal(t, 2, firstReview.GetViewedFileCount())
+
+	secondReviewCommit := "e303f5ef01a33709911c6b8b3d1cbcba64a57777"
+	secondReviewUpdatedFiles := map[string]pull_model.ViewedState{
+		"README.md": pull_model.Viewed,
+		"test.txt":  pull_model.Unviewed,
+	}
+
+	opts := &DiffOptions{
+		AfterCommitID:  secondReviewCommit,
+		BeforeCommitID: pull.MergeBase,
+	}
+	diff := &Diff{
+		Files: []*DiffFile{
+			{Name: "README.md"},
+		},
+	}
+	secondReview, err := SyncUserSpecificDiff(t.Context(), user.ID, pull, gitRepo, diff, opts)
+	assert.NoError(t, err)
+	assert.NotNil(t, secondReview)
+	assert.Equal(t, secondReviewUpdatedFiles, secondReview.UpdatedFiles)
+	assert.Equal(t, 1, secondReview.GetViewedFileCount())
 }
