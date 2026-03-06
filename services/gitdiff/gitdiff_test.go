@@ -1153,7 +1153,6 @@ func TestSyncUserSpecificDiff_UpdatedFiles(t *testing.T) {
 	assert.NoError(t, pull.LoadBaseRepo(t.Context()))
 
 	stdin := `commit refs/heads/branch1
-author test <test@example.com> 1772749114 +0000
 committer test <test@example.com> 1772749114 +0000
 data 7
 revert
