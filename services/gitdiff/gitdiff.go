@@ -1477,9 +1477,12 @@ func SyncUserSpecificDiff(ctx context.Context, userID int64, pull *issues_model.
 	if errIgnored != nil {
 		log.Error("Could not get changed files between %s and %s for pull request %d in repo with path %s. Assuming no changes. Error: %w", review.CommitSHA, latestCommit, pull.Index, gitRepo.Path, err)
 	}
+	changedFilesSet := make(map[string]struct{}, len(changedFiles))
+	for _, changedFile := range changedFiles {
+		changedFilesSet[changedFile] = struct{}{}
+	}
 
 	filesChangedSinceLastDiff := make(map[string]pull_model.ViewedState)
-outer:
 	for _, diffFile := range diff.Files {
 		filename := diffFile.GetDiffFileName()
 		fileViewedState := review.UpdatedFiles[filename]
@@ -1490,21 +1493,12 @@ outer:
 			continue
 		}
 
-		// Check explicitly whether the file has changed since the last review
-		for i, changedFile := range changedFiles {
-			diffFile.HasChangedSinceLastReview = filename == changedFile
-			if diffFile.HasChangedSinceLastReview {
-				filesChangedSinceLastDiff[filename] = pull_model.HasChanged
+		if _, ok := changedFilesSet[filename]; ok { // Check explicitly whether the file has changed since the last review
+			diffFile.HasChangedSinceLastReview = true
+			filesChangedSinceLastDiff[filename] = pull_model.HasChanged
 
-				// File changes are processed, no need to check them again
-				changedFiles[i] = changedFiles[len(changedFiles)-1]
-				changedFiles = changedFiles[:len(changedFiles)-1]
-
-				continue outer // We don't want to check if the file is viewed here as that would fold the file, which is in this case unwanted
-			}
-		}
-		// Check whether the file has already been viewed
-		if fileViewedState == pull_model.Viewed {
+			delete(changedFilesSet, filename)
+		} else if fileViewedState == pull_model.Viewed { // Check whether the file has already been viewed
 			diffFile.IsViewed = true
 		}
 	}
@@ -1512,7 +1506,7 @@ outer:
 	// All changed files still present at this point aren't part of the diff anymore, this occurs
 	// when a file was modified in a previous commit of the diff and the modification got reverted afterwards.
 	// Marking the files as unviewed to prevent errors where a non-existing file has a view state
-	for _, changedFile := range changedFiles {
+	for changedFile := range changedFilesSet {
 		if _, ok := review.UpdatedFiles[changedFile]; ok {
 			filesChangedSinceLastDiff[changedFile] = pull_model.Unviewed
 		}
@@ -1521,7 +1515,6 @@ outer:
 	if len(filesChangedSinceLastDiff) > 0 {
 		// Explicitly store files that have changed in the database, if any is present at all.
 		// This has the benefit that the "Has Changed" attribute will be present as long as the user does not explicitly mark this file as viewed, so it will even survive a page reload after marking another file as viewed.
-		// On the other hand, this means that even if a commit reverting an unseen change is committed, the file will still be seen as changed.
 		updatedReview, err := pull_model.UpdateReviewState(ctx, review.UserID, review.PullID, review.CommitSHA, filesChangedSinceLastDiff)
 		if err != nil {
 			log.Warn("Could not update review for user %d, pull %d, commit %s and the changed files %v: %v", review.UserID, review.PullID, review.CommitSHA, filesChangedSinceLastDiff, err)
