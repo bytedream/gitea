@@ -1487,16 +1487,12 @@ func SyncUserSpecificDiff(ctx context.Context, userID int64, pull *issues_model.
 		filename := diffFile.GetDiffFileName()
 		fileViewedState := review.UpdatedFiles[filename]
 
-		// Check whether it was previously detected that the file has changed since the last review
-		if fileViewedState == pull_model.HasChanged {
+		if fileViewedState == pull_model.HasChanged { // Check whether it was previously detected that the file has changed since the last review
 			diffFile.HasChangedSinceLastReview = true
-			continue
-		}
-
-		if _, ok := changedFilesSet[filename]; ok { // Check explicitly whether the file has changed since the last review
+			delete(changedFilesSet, filename)
+		} else if _, ok := changedFilesSet[filename]; ok { // Check explicitly whether the file has changed since the last review
 			diffFile.HasChangedSinceLastReview = true
 			filesChangedSinceLastDiff[filename] = pull_model.HasChanged
-
 			delete(changedFilesSet, filename)
 		} else if fileViewedState == pull_model.Viewed { // Check whether the file has already been viewed
 			diffFile.IsViewed = true
