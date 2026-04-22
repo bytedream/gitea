@@ -200,6 +200,7 @@ td .commit-summary {
 
 .repo-editor-header {
   display: flex;
+  /* margin-top and align-items must match .repo-button-row so the file tree toggle button sits at the same y position in both states */
   margin: 8px 0 1rem;
   width: 100%;
   gap: 0.5em;
