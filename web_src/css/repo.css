@@ -200,10 +200,10 @@ td .commit-summary {
 
 .repo-editor-header {
   display: flex;
-  margin: 5px 0 1rem;
+  margin: 8px 0 1rem;
   width: 100%;
   gap: 0.5em;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .repo-editor-header input {
