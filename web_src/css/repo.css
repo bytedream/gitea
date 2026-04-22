@@ -206,10 +206,6 @@ td .commit-summary {
   width: 100%;
 }
 
-.repo-editor-header .breadcrumb {
-  flex-wrap: wrap;
-}
-
 .repo-editor-header input {
   vertical-align: middle !important;
   width: auto !important;
