@@ -199,11 +199,12 @@ td .commit-summary {
 }
 
 .repo-editor-header {
+  margin: 8px 0;
   display: flex;
-  margin: 8px 0 1rem; /* match .repo-button-row so the tree toggle button stays put */
-  width: 100%;
-  gap: 0.5em;
   align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
 .repo-editor-header input {
