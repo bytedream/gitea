@@ -201,7 +201,7 @@ td .commit-summary {
 .repo-editor-header {
   margin: 8px 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   width: 100%;
@@ -210,7 +210,8 @@ td .commit-summary {
 .repo-editor-header input {
   vertical-align: middle !important;
   width: auto !important;
-  padding: 7px 8px !important;
+  height: 30px !important;
+  padding: 5px 8px !important;
   margin-right: 5px !important;
 }
 
