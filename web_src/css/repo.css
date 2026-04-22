@@ -203,8 +203,11 @@ td .commit-summary {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
   width: 100%;
+}
+
+.repo-editor-header .breadcrumb {
+  flex-wrap: wrap;
 }
 
 .repo-editor-header input {
